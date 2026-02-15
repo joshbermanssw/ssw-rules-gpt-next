@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { getDevUser, isDev } from '@/lib/dev-auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -9,17 +10,23 @@ interface RouteParams {
 // GET /api/conversations/[id] - Get a single conversation
 export async function GET(req: Request, { params }: RouteParams) {
   const session = await auth();
+  const user = getDevUser(session);
   const { id } = await params;
 
-  if (!session?.user?.email) {
+  if (!user?.email && !isDev) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // In dev mode without DB, return mock
+  if (isDev && !user?.email) {
+    return NextResponse.json({ id, conversation: [], conversation_title: 'Dev Chat' });
   }
 
   const { data, error } = await supabase
     .from('chat_history')
     .select('*')
     .eq('id', id)
-    .eq('user', session.user.email)
+    .eq('user', user!.email)
     .single();
 
   if (error) {
@@ -33,13 +40,19 @@ export async function GET(req: Request, { params }: RouteParams) {
 // PUT /api/conversations/[id] - Update a conversation
 export async function PUT(req: Request, { params }: RouteParams) {
   const session = await auth();
+  const user = getDevUser(session);
   const { id } = await params;
 
-  if (!session?.user?.email) {
+  if (!user?.email && !isDev) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { title, conversation } = await req.json();
+
+  // In dev mode without DB, return success
+  if (isDev && !user?.email) {
+    return NextResponse.json({ id, conversation_title: title, success: true });
+  }
 
   const updateData: Record<string, unknown> = {};
   if (title !== undefined) updateData.conversation_title = title;
@@ -49,7 +62,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
     .from('chat_history')
     .update(updateData)
     .eq('id', id)
-    .eq('user', session.user.email)
+    .eq('user', user!.email)
     .select()
     .single();
 
@@ -64,17 +77,23 @@ export async function PUT(req: Request, { params }: RouteParams) {
 // DELETE /api/conversations/[id] - Delete a single conversation
 export async function DELETE(req: Request, { params }: RouteParams) {
   const session = await auth();
+  const user = getDevUser(session);
   const { id } = await params;
 
-  if (!session?.user?.email) {
+  if (!user?.email && !isDev) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // In dev mode without DB, return success
+  if (isDev && !user?.email) {
+    return NextResponse.json({ success: true });
   }
 
   const { error } = await supabase
     .from('chat_history')
     .delete()
     .eq('id', id)
-    .eq('user', session.user.email);
+    .eq('user', user!.email);
 
   if (error) {
     console.error('Error deleting conversation:', error);

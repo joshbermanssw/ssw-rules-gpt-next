@@ -3,13 +3,15 @@ import { streamText } from 'ai';
 import { auth } from '@/lib/auth';
 import { findRelevantRules } from '@/lib/vector-search';
 import { trackUserMessage } from '@/lib/leaderboard';
+import { getDevUser, isDev } from '@/lib/dev-auth';
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const session = await auth();
+  const user = getDevUser(session);
 
-  if (!session?.user?.email) {
+  if (!user?.email && !isDev) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -23,8 +25,10 @@ export async function POST(req: Request) {
   // RAG: Retrieve relevant rules
   const relevantRules = await findRelevantRules(userMessages);
 
-  // Track for leaderboard
-  await trackUserMessage(session.user.email, session.user.name ?? 'Unknown');
+  // Track for leaderboard (skip in dev mode without real user)
+  if (user?.email && !isDev) {
+    await trackUserMessage(user.email, user.name ?? 'Unknown');
+  }
 
   // Build system prompt (matching current .NET behavior from MessageHandler.cs)
   const systemPrompt = `

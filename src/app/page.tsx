@@ -6,10 +6,13 @@ import { Sidebar } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { signIn } from 'next-auth/react';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export default function Home() {
   const { data: session, status } = useSession();
 
-  if (status === 'loading') {
+  // In dev mode, skip auth loading state and show chat immediately
+  if (status === 'loading' && !isDev) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -17,7 +20,8 @@ export default function Home() {
     );
   }
 
-  if (!session) {
+  // In dev mode, skip sign-in requirement
+  if (!session && !isDev) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6">
         <div className="text-center">

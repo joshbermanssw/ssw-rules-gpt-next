@@ -21,7 +21,7 @@ export function ChatInput({ input, onChange, onSubmit, isLoading }: ChatInputPro
         disabled={isLoading}
         className="flex-1"
       />
-      <Button type="submit" disabled={isLoading || !input.trim()}>
+      <Button type="submit" disabled={isLoading || input?.trim()}>
         {isLoading ? (
           <span className="flex items-center gap-2">
             <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
